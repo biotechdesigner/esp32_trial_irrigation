@@ -4,6 +4,12 @@ from machine import Pin, I2C, RTC
 import urequests
 import uos
 import uasyncio as asyncio
+from arduino_iot_cloud import ArduinoCloudClient
+
+from secrets import WIFI_SSID
+from secrets import WIFI_PASSWORD
+from secrets import DEVICE_ID
+from secrets import CLOUD_PASSWORD
 
 # I2C address for AM2315
 AM2315_I2C_ADDRESS = 0x5C
@@ -71,6 +77,7 @@ def send_data_to_endpoint(temperature, humidity):
     except Exception as e:
         print('Error sending data to endpoint:', e)
         print('Exception details:', str(e))
+        
 
 # Configuration of the I2C bus
 i2c = I2C(0, scl=Pin(12), sda=Pin(11), freq=10000)
@@ -88,7 +95,10 @@ async def read_sensor_data():
         if temperature is not None and humidity is not None:
             print('Temperature: {:.1f} C'.format(temperature))
             print('Humidity: {:.1f} %'.format(humidity))
-
+            client = ArduinoCloudClient(device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD)
+            client.register("temperature", value=temperature)
+            client.register("humidity", value=humidity)
+          
             # Get the current timestamp
             datetime = rtc.datetime()
             timestamp = '{}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}'.format(datetime[0], datetime[1], datetime[2], datetime[4], datetime[5], datetime[6])
@@ -98,8 +108,9 @@ async def read_sensor_data():
             
             # Send data to endpoint
             send_data_to_endpoint(temperature, humidity)
+            client.start()
         else:
             print("Error reading from AM2315 sensor")
 
         # Wait for 15 minutes
-        await asyncio.sleep(900)
+        await asyncio.sleep(10)

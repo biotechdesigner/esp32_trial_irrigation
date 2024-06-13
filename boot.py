@@ -3,6 +3,7 @@ import time
 import machine
 from machine import RTC
 import uasyncio as asyncio
+import logging
 
 from secrets import WIFI_SSID
 from secrets import WIFI_PASSWORD
@@ -45,7 +46,13 @@ def set_time():
     except Exception as e:
         print('Error fetching time:', e)
 
+    
 # Connect to Wi-Fi and set the RTC time
+logging.basicConfig(
+  datefmt="%H:%M:%S",
+  format="%(asctime)s.%(msecs)03d %(message)s",
+  level=logging.INFO,
+)
 connect_wifi()
 set_time()
 
