@@ -4,15 +4,16 @@ import machine
 from machine import RTC
 import uasyncio as asyncio
 
-# Wi-Fi configuration
-ssid = 'FRITZ!Box 7520 JH'
-password = '32542677706967395172'
+from secrets import WIFI_SSID
+from secrets import WIFI_PASSWORD
+from secrets import DEVICE_ID
+from secrets import CLOUD_PASSWORD
 
 # Function to connect to Wi-Fi
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(ssid, password)
+    wlan.connect(WIFI_SSID, WIFI_PASSWORD)
 
     print('Connecting to Wi-Fi...')
     while not wlan.isconnected():
