@@ -131,7 +131,7 @@ async def main():
     client.register("relay", value=None, on_read=read_relay_state, interval=0.025)
     client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
     client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
-    client.register(Task("irrigation_task", on_run=irrigation_task, interval=80))  # Run every hour
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
     # Register the Wi-Fi connection task
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
 
