@@ -1,5 +1,3 @@
-# main.py
-
 import time
 import logging
 from machine import Pin, I2C
@@ -13,9 +11,14 @@ AM2315_I2C_ADDRESS = 0x5C
 i2c = I2C(0, scl=Pin(12), sda=Pin(11), freq=10000)
 relay = Pin(14, Pin.OUT)
 
+# Global variables for irrigation
+irrigation_day = 0
+irrigation_remaining = 0
+irrigation_interval = 0
+irrigate = False
+
 def wdt_task(client):
     global wdt
-    # Update the WDT to prevent it from resetting the system
     wdt.feed()
 
 def wake_up_sensor():
@@ -55,32 +58,64 @@ def read_humidity(client):
     print('Humidity: {} %'.format(humidity))
     return humidity if humidity is not None else -1000.0
 
-def on_relay_changed(client, value):
-    relay.value(value)
-    client["relay"] = bool(value)
-    print(f"Relay state changed to: {bool(value)}")
+def read_relay_state(client):
+    state = relay.value()
+    return bool(state)
 
-def fetch_irrigation_minutes(client):
-    # Fetch irrigation minutes from cloud (replace with actual fetching logic)
-    return 14
-
-def irrigation_task(client, value):
-    irrigation_day.value(value)
-    client["irrigation_day"] = float(value)
+def on_irrigation_day_changed(client, value):
+    global irrigation_day, irrigation_remaining, irrigation_interval, irrigate
+    irrigation_day = float(value)
+    client["irrigation_day"] = irrigation_day
+    
     if irrigation_day > 0:
-      irrigate = true 
-      irrigation_remaining = irrigation_day
-      irrigation_interval = irrigation_day/14
-      relay.value(1)
-      client["relay"] = True
-      time.sleep(irrigation_interval * 60)
-      relay.value(0)
-      client["relay"] = False
-      irrigation_remaining -= irrigation_interval
-      
-    else:
+        irrigate = True 
+        irrigation_remaining = irrigation_day
+        irrigation_interval = irrigation_day / 14
+        client["irrigation_remaining"] = irrigation_remaining
+    else: 
+        irrigate = False
 
-if __name__ == "__main__":
+def irrigation_task(client):
+    global irrigation_remaining, irrigate
+    if irrigate and irrigation_remaining > 0:
+        relay.value(1)
+        client["relay"] = True
+        print("Relay is ON and updated to cloud")
+        time.sleep(irrigation_interval * 60)
+        relay.value(0)
+        client["relay"] = False
+        print("Relay is OFF and updated to cloud")
+        
+        irrigation_remaining -= irrigation_interval
+        irrigation_remaining = max(0.0, irrigation_remaining)
+        client["irrigation_remaining"] = irrigation_remaining
+        print('Irrigation remaining: {} min'.format(irrigation_remaining))
+        
+        if irrigation_remaining <= 0:
+            irrigate = False
+    else:
+        irrigate = False
+
+def fetch_irrigation_values(client):
+    global irrigation_day, irrigation_remaining
+    try:
+        # Attempt to fetch the values from the cloud
+        cloud_irrigation_day = client.get("irrigation_day", None)
+        cloud_irrigation_remaining = client.get("irrigation_remaining", None)
+        
+        # Use fetched values if they exist, otherwise fall back to local variables
+        if cloud_irrigation_day is not None:
+            irrigation_day = cloud_irrigation_day
+        if cloud_irrigation_remaining is not None:
+            irrigation_remaining = cloud_irrigation_remaining
+
+        print(f"Fetched irrigation_day: {irrigation_day}, irrigation_remaining: {irrigation_remaining}")
+    except Exception as e:
+        # In case of any exception, log the error and fall back to local values
+        print(f"Failed to fetch values from cloud: {e}")
+        print(f"Using local values: irrigation_day={irrigation_day}, irrigation_remaining={irrigation_remaining}")
+
+async def main():
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
@@ -91,10 +126,14 @@ if __name__ == "__main__":
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
     
-    client.register("relay", value=None, on_read=on_relay_changed, interval= 0.025)
-    client.register("irrigation_day", value=None, on_write=irrigation_task, interval= 0.025)
+    client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
+    client.register("irrigation_remaining", value=None)
+    client.register("relay", value=None, on_read=read_relay_state, interval=0.025)
     client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
     client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=80))  # Run every hour
+    # Register the Wi-Fi connection task
+    client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
 
     if False:
         try:
@@ -104,9 +143,18 @@ if __name__ == "__main__":
             client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
         except (ImportError, AttributeError):
             pass
-          
-    client.start()
-    
+
+    await client.start()
+
+    fetch_irrigation_values(client)
+
     while True:
-    client.update()
-    time.sleep(0.100)
+        client.update()
+        time.sleep(0.100)
+
+# Start the main async function
+import uasyncio as asyncio
+try:
+    asyncio.run(main())
+except Exception as e:
+    print(f"Unhandled exception: {e}")
