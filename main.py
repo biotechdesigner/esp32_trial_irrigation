@@ -64,24 +64,21 @@ def fetch_irrigation_minutes(client):
     # Fetch irrigation minutes from cloud (replace with actual fetching logic)
     return 14
 
-def irrigation_task(client):
-    print("Irrigation task started")
-    relay.value(1)  # Turn on the relay
-    client["relay"] = True  # Update the cloud variable as boolean
-    print("Relay is ON and updated to cloud")
-    time.sleep(30)  # Wait for 30 seconds
-    relay.value(0)  # Turn off the relay
-    client["relay"] = False  # Update the cloud variable as boolean
-    print("Relay is OFF and updated to cloud")
-    # irrigation_minutes = fetch_irrigation_minutes(client)
-    # irrigation_time = irrigation_minutes / 14.0
-    # for hour in range(14):
-    #     relay.value(1)
-    #     client["relay"] = 1
-    #     time.sleep(irrigation_time * 60)
-    #     relay.value(0)
-    #     client["relay"] = 0
-    #     time.sleep((60 - irrigation_time) * 60)
+def irrigation_task(client, value):
+    irrigation_day.value(value)
+    client["irrigation_day"] = float(value)
+    if irrigation_day > 0:
+      irrigate = true 
+      irrigation_remaining = irrigation_day
+      irrigation_interval = irrigation_day/14
+      relay.value(1)
+      client["relay"] = True
+      time.sleep(irrigation_interval * 60)
+      relay.value(0)
+      client["relay"] = False
+      irrigation_remaining -= irrigation_interval
+      
+    else:
 
 if __name__ == "__main__":
     logging.basicConfig(
@@ -94,7 +91,8 @@ if __name__ == "__main__":
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
     
-    client.register("relay", value=None, on_write=on_relay_changed)
+    client.register("relay", value=None, on_read=on_relay_changed, interval= 0.025)
+    client.register("irrigation_day", value=None, on_write=irrigation_task, interval= 0.025)
     client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
     client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
 
@@ -108,3 +106,7 @@ if __name__ == "__main__":
             pass
           
     client.start()
+    
+    while True:
+    client.update()
+    time.sleep(0.100)
