@@ -13,7 +13,7 @@ relay = Pin(14, Pin.OUT)
 
 # Global variables for irrigation
 irrigation_day = 0
-irrigation_remaining = 0
+irr_remaining = 0
 irrigation_interval = 0
 irrigate = False
 
@@ -51,6 +51,8 @@ def read_data():
 def read_temperature(client):
     temperature, _ = read_data()
     print('Temperature: {} C'.format(temperature))
+    print('Irrigation day: {} min'.format(irrigation_day))
+    print('Irrigation remaining: {} min'.format(irr_remaining))
     return temperature if temperature is not None else 1000.0
 
 def read_humidity(client):
@@ -63,21 +65,21 @@ def read_relay_state(client):
     return bool(state)
 
 def on_irrigation_day_changed(client, value):
-    global irrigation_day, irrigation_remaining, irrigation_interval, irrigate
+    global irrigation_day, irr_remaining, irrigation_interval, irrigate
     irrigation_day = float(value)
     client["irrigation_day"] = irrigation_day
     
     if irrigation_day > 0:
         irrigate = True 
-        irrigation_remaining = irrigation_day
+        irr_remaining = irrigation_day
         irrigation_interval = irrigation_day / 14
-        client["irrigation_remaining"] = irrigation_remaining
+        client["irr_remaining"] = irr_remaining
     else: 
         irrigate = False
 
 def irrigation_task(client):
-    global irrigation_remaining, irrigate
-    if irrigate and irrigation_remaining > 0:
+    global irr_remaining, irrigate
+    if irrigate and irr_remaining > 0:
         relay.value(1)
         client["relay"] = True
         print("Relay is ON and updated to cloud")
@@ -86,34 +88,34 @@ def irrigation_task(client):
         client["relay"] = False
         print("Relay is OFF and updated to cloud")
         
-        irrigation_remaining -= irrigation_interval
-        irrigation_remaining = max(0.0, irrigation_remaining)
-        client["irrigation_remaining"] = irrigation_remaining
-        print('Irrigation remaining: {} min'.format(irrigation_remaining))
+        irr_remaining -= irrigation_interval
+        irr_remaining = max(0.0, irr_remaining)
+        client["irr_remaining"] = irr_remaining
+        print('Irrigation remaining: {} min'.format(irr_remaining))
         
-        if irrigation_remaining <= 0:
+        if irr_remaining <= 0:
             irrigate = False
     else:
         irrigate = False
 
 def fetch_irrigation_values(client):
-    global irrigation_day, irrigation_remaining
+    global irrigation_day, irr_remaining
     try:
         # Attempt to fetch the values from the cloud
         cloud_irrigation_day = client.get("irrigation_day", None)
-        cloud_irrigation_remaining = client.get("irrigation_remaining", None)
+        cloud_irr_remaining = client.get("irr_remaining", None)
         
         # Use fetched values if they exist, otherwise fall back to local variables
         if cloud_irrigation_day is not None:
             irrigation_day = cloud_irrigation_day
-        if cloud_irrigation_remaining is not None:
-            irrigation_remaining = cloud_irrigation_remaining
+        if cloud_irr_remaining is not None:
+            irr_remaining = cloud_irr_remaining
 
-        print(f"Fetched irrigation_day: {irrigation_day}, irrigation_remaining: {irrigation_remaining}")
+        
     except Exception as e:
         # In case of any exception, log the error and fall back to local values
         print(f"Failed to fetch values from cloud: {e}")
-        print(f"Using local values: irrigation_day={irrigation_day}, irrigation_remaining={irrigation_remaining}")
+        print(f"Using local values: irrigation_day={irrigation_day}, irr_remaining={irr_remaining}")
 
 async def main():
     logging.basicConfig(
@@ -127,7 +129,7 @@ async def main():
     )
     
     client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
-    client.register("irrigation_remaining", value=None)
+    client.register("irr_remaining", value=None)
     client.register("relay", value=None, on_read=read_relay_state, interval=0.025)
     client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
     client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
