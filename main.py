@@ -1,7 +1,7 @@
 import time
 import logging
 from machine import Pin, I2C
-from secrets import DEVICE_ID, CLOUD_PASSWORD
+from my_secrets import DEVICE_ID, CLOUD_PASSWORD
 from arduino_iot_cloud import Task, ArduinoCloudClient, async_wifi_connection
 
 # I2C address of the AM2315
@@ -16,6 +16,7 @@ irrigation_day = 0
 irrigation_remaining = 0
 irrigation_interval = 0
 irrigate = False
+
 
 def wdt_task(client):
     global wdt
@@ -135,7 +136,7 @@ async def main():
     # Register the Wi-Fi connection task
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
 
-    if False:
+    if True:
         try:
             from machine import WDT
             # Enable the WDT with a timeout of 5s (1s is the minimum)

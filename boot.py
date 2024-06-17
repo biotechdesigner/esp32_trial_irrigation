@@ -3,7 +3,7 @@
 import network
 import time
 import machine
-from secrets import SSID, PASSWORD, DEVICE_ID, CLOUD_PASSWORD
+from my_secrets import SSID, PASSWORD, DEVICE_ID, CLOUD_PASSWORD
 
 
 def connect_to_wifi():
