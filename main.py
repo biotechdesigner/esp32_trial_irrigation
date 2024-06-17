@@ -70,8 +70,7 @@ def on_irrigation_day_changed(client, value):
     if irrigation_day > 0 and irr_remaining == 0:
         irrigate = True 
         irr_remaining = irrigation_day
-        irrigation_interval = round(irrigation_day / 14, 2)
-
+        irrigation_interval = irrigation_day / 14
         client["irr_remaining"] = irr_remaining
     else: 
         None
