@@ -69,13 +69,14 @@ def on_irrigation_day_changed(client, value):
     irrigation_day = float(value)
     client["irrigation_day"] = irrigation_day
     
-    if irrigation_day > 0:
+    if irrigation_day > 0 and irr_remaining == 0:
         irrigate = True 
         irr_remaining = irrigation_day
-        irrigation_interval = irrigation_day / 14
+        irrigation_interval = round(irrigation_day / 14, 2)
+
         client["irr_remaining"] = irr_remaining
     else: 
-        irrigate = False
+        None
 
 def irrigation_task(client):
     global irr_remaining, irrigate
@@ -90,10 +91,11 @@ def irrigation_task(client):
         
         irr_remaining -= irrigation_interval
         irr_remaining = max(0.0, irr_remaining)
+        irr_remaining = round(irr_remaining, 2)
         client["irr_remaining"] = irr_remaining
         print('Irrigation remaining: {} min'.format(irr_remaining))
         
-        if irr_remaining <= 0:
+        if irr_remaining == 0:
             irrigate = False
     else:
         irrigate = False
@@ -104,14 +106,13 @@ def fetch_irrigation_values(client):
         # Attempt to fetch the values from the cloud
         cloud_irrigation_day = client.get("irrigation_day", None)
         cloud_irr_remaining = client.get("irr_remaining", None)
-        
         # Use fetched values if they exist, otherwise fall back to local variables
         if cloud_irrigation_day is not None:
             irrigation_day = cloud_irrigation_day
         if cloud_irr_remaining is not None:
             irr_remaining = cloud_irr_remaining
-
-        
+        if irr_remaining > 0:
+            irrigate = True
     except Exception as e:
         # In case of any exception, log the error and fall back to local values
         print(f"Failed to fetch values from cloud: {e}")
@@ -130,10 +131,10 @@ async def main():
     
     client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
     client.register("irr_remaining", value=None)
-    client.register("relay", value=None, on_read=read_relay_state, interval=0.025)
-    client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
-    client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
-    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
+    client.register("relay", value=None, on_read=read_relay_state, interval=0.100)
+    client.register("humidity", value=None, on_read=read_humidity, interval=0.100)
+    client.register("temperature", value=None, on_read=read_temperature, interval=0.130)
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=120))  # Run every hour
     # Register the Wi-Fi connection task
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
 
