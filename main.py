@@ -116,7 +116,8 @@ def fetch_irrigation_values(client):
         print(f"Failed to fetch values from cloud: {e}")
         print(f"Using local values: irrigation_day={irrigation_day}, irrigation_remaining={irrigation_remaining}")
 
-async def main():
+# async def main():
+if __name__ == "__main__":
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
@@ -145,7 +146,8 @@ async def main():
         except (ImportError, AttributeError):
             pass
 
-    await client.start()
+    #await client.start()
+    client.start()
 
     fetch_irrigation_values(client)
 
@@ -154,8 +156,8 @@ async def main():
         time.sleep(0.100)
 
 # Start the main async function
-import uasyncio as asyncio
-try:
-    asyncio.run(main())
-except Exception as e:
-    print(f"Unhandled exception: {e}")
+# import uasyncio as asyncio
+# try:
+#     asyncio.run(main())
+# except Exception as e:
+#     print(f"Unhandled exception: {e}")
