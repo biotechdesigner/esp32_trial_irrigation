@@ -14,6 +14,7 @@ relay = Pin(14, Pin.OUT)
 # Global variables for irrigation
 irrigation_day = 0
 irr_passed = 0
+relay.value(0)
 irrigation_interval = 0
 intervals_done = 0
 irrigate = False
