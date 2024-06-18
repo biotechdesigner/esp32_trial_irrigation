@@ -16,10 +16,11 @@ irrigation_day = 0
 irr_passed = 0
 irrigation_interval = 0
 intervals_done = 0
+relay.value(0)
 irrigate = False
 
 # Initialize the watchdog timer with a timeout of 10 seconds
-wdt = WDT(timeout=10000)
+wdt = WDT(timeout=3900000)
 
 def wdt_task(client):
     global wdt
@@ -62,9 +63,9 @@ def read_humidity(client):
     print('Humidity: {} %'.format(humidity))
     return humidity if humidity is not None else -1000.0
 
-def read_relay_state(client):
-    state = relay.value()
-    return bool(state)
+def read_irrigate(client, value):
+    global irrigate
+    irrigate = bool(value)
 
 def on_irrigation_day_changed(client, value):
     global irrigation_day, irr_passed, irrigation_interval, irrigate, intervals_done
@@ -74,6 +75,7 @@ def on_irrigation_day_changed(client, value):
     print('Irrigation of the day: {} min'.format(irrigation_day))
     print("Irrigation interval: {}".format(irrigation_interval))
     irrigate = irrigation_day > 0
+    client["irrigate"] = irrigate
 
 def get_intervals_done(client, value):
     global intervals_done
@@ -83,33 +85,34 @@ def get_intervals_done(client, value):
 
 def irrigation_task(client):
     global irr_passed, irrigate, irrigation_day, intervals_done
-    if irrigate and irrigation_day > 0:
+    wdt.feed()
+    if irrigation_day > 0:
         relay.value(1)
-        client["relay"] = True
-        print("Relay is ON and updated to cloud")
-        for _ in range(int(irrigation_interval * 60)):
-            wdt.feed()
-            time.sleep(1)
+        print("Relay is ON")
+        time.sleep(irrigation_interval * 60)
         relay.value(0)
-        client["relay"] = False
-        print("Relay is OFF and updated to cloud")
+        print("Relay is OFF")
         
         irr_passed += irrigation_interval
         intervals_done += 1
         print("Amount of irrigations made: {}".format(intervals_done))
         print("Minutes of irrigation made so far: {}".format(irr_passed))
         client["intervals_done"] = intervals_done
+        client["irrigate"] = irrigate
         if intervals_done >= 14:
             irrigation_day = 0
             intervals_done = 0
             irr_passed = 0
+            irrigate = False
             client["irrigation_day"] = irrigation_day
             client["intervals_done"] = intervals_done
+            client["irrigate"] = irrigate
             print("Irrigation of the day completed")
             
         print('Irrigation remaining: {} min'.format(irrigation_day - irr_passed))
     else:
         print('no irrigation this hour')
+    wdt.feed()
 
 async def main():
     logging.basicConfig(
@@ -122,22 +125,20 @@ async def main():
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
     
-    client.register("relay", value=None, on_read=read_relay_state, interval=0.1)
     client.register("intervals_done", value=None, on_write=get_intervals_done)
     client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
-    client.register("humidity", value=None, on_read=read_humidity, interval=55.0)
-    client.register("temperature", value=None, on_read=read_temperature, interval=60.0)
-    client.register("irr_passed", value=None)
+    client.register("irrigate", value=None)
+    client.register("humidity", value=None, on_read=read_humidity, interval=900.0)  # 15 minutes
+    client.register("temperature", value=None, on_read=read_temperature, interval=900.0)  # 15 minutes
     client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
-    client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
 
     await client.start()
 
-    while True:
-        client.update()
-        wdt.feed()  # Feed the watchdog in the main loop
-        time.sleep(0.100)
+    #while True:
+    #    client.update()
+    #    wdt.feed()  # Feed the watchdog in the main loop
+    #    time.sleep(0.100)
 
 import uasyncio as asyncio
 try:
