@@ -135,11 +135,6 @@ async def main():
 
     await client.start()
 
-    #while True:
-    #    client.update()
-    #    wdt.feed()  # Feed the watchdog in the main loop
-    #    time.sleep(0.100)
-
 import uasyncio as asyncio
 try:
     asyncio.run(main())
