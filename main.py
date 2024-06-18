@@ -1,7 +1,7 @@
 import time
 import logging
 from machine import Pin, I2C
-from my_secrets import DEVICE_ID, CLOUD_PASSWORD
+from secrets import DEVICE_ID, CLOUD_PASSWORD
 from arduino_iot_cloud import Task, ArduinoCloudClient, async_wifi_connection
 
 # I2C address of the AM2315
@@ -134,8 +134,8 @@ def fetch_irrigation_values(client):
         print(f"Failed to fetch values from cloud: {e}")
         print(f"Using local values: irrigation_day={irrigation_day}, irr_passed={irr_passed}")
 
-async def main():
-#if __name__ == "__main__":
+#async def main():
+if __name__ == "__main__":
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
@@ -149,7 +149,7 @@ async def main():
     client.register("relay", value=None, on_read=read_relay_state, interval=0.1)
     client.register("intervals_done", value=None, on_write=get_intervals_done)
     client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
-    client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
+    client.register("humidity", value=None, on_read=read_humidity, interval=55.0)
     client.register("temperature", value=None, on_read=read_temperature, interval=60.0)
     client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
     # Register the Wi-Fi connection task
@@ -159,13 +159,13 @@ async def main():
         try:
             from machine import WDT
             # Enable the WDT with a timeout of 5s (1s is the minimum)
-            wdt = WDT(timeout=10000)
+            wdt = WDT(timeout=7500)
             client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
         except (ImportError, AttributeError):
             pass
 
-    await client.start()
-    #client.start()
+    #await client.start()
+    client.start()
 
     #fetch_irrigation_values(client)
 
@@ -174,8 +174,8 @@ async def main():
         time.sleep(0.100)
 
 # Start the main async function
-import uasyncio as asyncio
-try:
-    asyncio.run(main())
-except Exception as e:
-    print(f"Unhandled exception: {e}")
+#import uasyncio as asyncio
+#try:
+#    asyncio.run(main())
+#except Exception as e:
+#    print(f"Unhandled exception: {e}")
