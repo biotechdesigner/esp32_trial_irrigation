@@ -25,21 +25,6 @@ def wdt_task(client):
     global wdt
     wdt.feed()
 
-def wifi_connect():
-    ssid = secrets['wifi_ssid']
-    password = secrets['wifi_pass']
-    if not ssid or not password:
-        raise Exception("Network is not configured. Set SSID and passwords in secrets.py")
-    
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect(ssid, password)
-    while not wlan.isconnected():
-        logging.info("Trying to connect to WiFi...")
-        time.sleep(0.5)
-    
-    logging.info(f"WiFi connected with IP: {wlan.ifconfig()}")
-
 def wake_up_sensor():
     try:
         i2c.writeto(AM2315_I2C_ADDRESS, b'\x00')
@@ -132,8 +117,6 @@ async def main():
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
-
-    wifi_connect()
 
     client = ArduinoCloudClient(
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
