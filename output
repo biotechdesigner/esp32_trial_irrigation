@@ -1,0 +1,61 @@
+Traceback (most recent call last):
+  File "main.py", line 168, in <module>
+  File "/lib/arduino_iot_cloud/ucloud.py", line 435, in start
+  File "asyncio/core.py", line 1, in run
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "/lib/arduino_iot_cloud/ucloud.py", line 161, in run
+  File "/lib/arduino_iot_cloud/ucloud.py", line 168, in run_sync
+  File "/lib/arduino_iot_cloud/ucloud.py", line 387, in poll_mqtt
+  File "/lib/arduino_iot_cloud/umqtt.py", line 175, in publish
+  File "/lib/arduino_iot_cloud/umqtt.py", line 212, in wait_msg
+KeyboardInterrupt: 
+MicroPython v1.23.0 on 2024-06-02; Arduino Nano ESP32 with ESP32S3
+Type "help()" for more information.
+>>> 
+
+Type "help()" for more information.
+>>> 
+>>> 
+MPY: soft reboot
+Connected to WiFi: ('192.168.178.39', '255.255.255.0', '192.168.178.1', '192.168.178.1')
+09:49:10.000 RTC time set from NTP.
+09:49:10.000 task: relay created.
+09:49:10.000 task: intervals_done created.
+09:49:10.000 task: irrigation_day created.
+Humidity: 59.5 %
+09:49:10.000 task: humidity created.
+Error reading AM2315 on attempt 1: [Errno 19] ENODEV
+Temperature: 24.1 C
+09:49:11.000 task: temperature created.
+09:49:11.000 task: irrigation_task created.
+09:49:11.000 task: wifi_connection created.
+Humidity: 59.5 %
+Error reading AM2315 on attempt 1: [Errno 19] ENODEV
+Temperature: 24.1 C
+no irrigation this hour
+09:49:12.000 task: connection_task created.
+09:49:12.000 task: wifi_connection raised exception: Network is not configured. Set SSID and passwords in secrets.py.
+Task exception wasn't retrieved
+future: <Task> coro= <generator object 'run' at 3c189830>
+Traceback (most recent call last):
+  File "/lib/arduino_iot_cloud/ucloud.py", line 406, in run
+  File "asyncio/funcs.py", line 1, in gather
+  File "asyncio/core.py", line 1, in run_until_complete
+  File "/lib/arduino_iot_cloud/ucloud.py", line 161, in run
+  File "/lib/arduino_iot_cloud/ucloud.py", line 168, in run_sync
+  File "/lib/arduino_iot_cloud/__init__.py", line 162, in async_wifi_connection
+Exception: Network is not configured. Set SSID and passwords in secrets.py
+09:49:12.000 Connecting to Arduino IoT cloud...
+09:49:14.000 Subscribe: b'/a/d/82618d67-aff9-464b-aaf4-684e0f6a5f98/e/i'.
+09:49:14.000 task: discovery created.
+09:49:14.000 task: mqtt_task created.
+09:49:14.000 task: connection_task complete.
+09:49:15.000 Subscribe: b'/a/t/174f786a-33e1-4531-a888-c53afdb3b8e0/e/i'.
+09:49:15.000 Subscribe: b'/a/t/174f786a-33e1-4531-a888-c53afdb3b8e0/shadow/i'.
+09:49:16.000 Ignoring cloud initialization for record: irrigation_day
+09:49:16.000 Ignoring cloud initialization for record: relay
+09:49:16.000 Ignoring cloud initialization for record: humidity
+09:49:16.000 Ignoring cloud initialization for record: temperature
+09:49:16.000 Unkown record found: intervals_left value: 0.0
+09:49:16.000 Device configured via discovery protocol.
+09:49:17.000 task: discovery complete.

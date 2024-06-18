@@ -13,8 +13,9 @@ relay = Pin(14, Pin.OUT)
 
 # Global variables for irrigation
 irrigation_day = 0
-irrigation_remaining = 0
+irr_passed = 0
 irrigation_interval = 0
+intervals_done = 0
 irrigate = False
 
 
@@ -63,22 +64,30 @@ def read_relay_state(client):
     state = relay.value()
     return bool(state)
 
+
 def on_irrigation_day_changed(client, value):
-    global irrigation_day, irrigation_remaining, irrigation_interval, irrigate
+    global irrigation_day, irr_passed, irrigation_interval, irrigate, intervals_done
     irrigation_day = float(value)
-    client["irrigation_day"] = irrigation_day
-    
-    if irrigation_day > 0 and irr_remaining == 0:
-        irrigate = True 
-        irr_remaining = irrigation_day
-        irrigation_interval = irrigation_day / 14
-        client["irr_remaining"] = irr_remaining
-    else: 
-        None
+    irrigation_interval = irrigation_day / 14
+    #client["irrigation_day"] = irrigation_day
+    print('Updated values from the cloud')
+    print('Irrigation of the day: {} min'.format(irrigation_day))
+    print("Irrigation interval: {}".format(irrigation_interval))
+    if irrigation_day > 0:
+        irrigate = True
+    else:
+        irrigate = False
+        
+def get_intervals_done(client, value):
+    global intervals_done
+    intervals_done = float(value)
+    #client["irrigation_day"] = irrigation_day
+    print('Updated values from the cloud')
+    print("Hours of irrigation made: {} hours".format(intervals_done))
 
 def irrigation_task(client):
-    global irrigation_remaining, irrigate
-    if irrigate and irrigation_remaining > 0:
+    global irr_passed, irrigate, irrigation_day, intervals_done
+    if irrigation_day > 0:
         relay.value(1)
         client["relay"] = True
         print("Relay is ON and updated to cloud")
@@ -87,37 +96,46 @@ def irrigation_task(client):
         client["relay"] = False
         print("Relay is OFF and updated to cloud")
         
-        irr_remaining -= irrigation_interval
-        irr_remaining = max(0.0, irr_remaining)
-        client["irr_remaining"] = irr_remaining
-        print('Irrigation remaining: {} min'.format(irr_remaining))
-        
-        if irr_remaining <= 0:
-            irrigate = False
+        irr_passed = irr_passed + irrigation_interval
+        intervals_done = intervals_done + 1
+        print("Amount of irrigations made: {}".format(intervals_done))
+        print("Minutes of irrigation made so far: {}".format(irr_passed))
+        client["intervals_done"] = intervals_done
+        if intervals_done >= 14:
+            irrigation_day = 0
+            intervals_done = 0
+            irr_passed = 0
+            #irrigate = False
+            client["irrigation_day"] = irrigation_day
+            client["intervals_done"] = intervals_done
+            print("Irrigation of the day completed")
+            
+        print('Irrigation remaining: {} min'.format(irrigation_day - irr_passed))
     else:
-        irrigate = False
+        print('no irrigation this hour')
 
 def fetch_irrigation_values(client):
-    global irrigation_day, irrigation_remaining
+    global irrigation_day, irr_passed, irrigate
     try:
         # Attempt to fetch the values from the cloud
-        cloud_irrigation_day = client.get("irrigation_day", None)
-        cloud_irr_remaining = client.get("irr_remaining", None)
+        #cloud_irrigation_day = client.get("irrigation_day", None)
+        cloud_irr_passed = client.get("irr_passed", None)
         
         # Use fetched values if they exist, otherwise fall back to local variables
-        if cloud_irrigation_day is not None:
-            irrigation_day = cloud_irrigation_day
-        if cloud_irr_remaining is not None:
-            irr_remaining = cloud_irr_remaining
+        #if cloud_irrigation_day is not None:
+            #irrigation_day = cloud_irrigation_day
+        if cloud_irr_passed > 0:
+            irr_passed = cloud_irr_passed
+            irrigate = True
 
         
     except Exception as e:
         # In case of any exception, log the error and fall back to local values
         print(f"Failed to fetch values from cloud: {e}")
-        print(f"Using local values: irrigation_day={irrigation_day}, irrigation_remaining={irrigation_remaining}")
+        print(f"Using local values: irrigation_day={irrigation_day}, irr_passed={irr_passed}")
 
-# async def main():
-if __name__ == "__main__":
+async def main():
+#if __name__ == "__main__":
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
@@ -128,11 +146,11 @@ if __name__ == "__main__":
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
     
+    client.register("relay", value=None, on_read=read_relay_state, interval=0.1)
+    client.register("intervals_done", value=None, on_write=get_intervals_done)
     client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
-    client.register("irr_remaining", value=None)
-    client.register("relay", value=None, on_read=read_relay_state, interval=0.025)
     client.register("humidity", value=None, on_read=read_humidity, interval=60.0)
-    client.register("temperature", value=None, on_read=read_temperature, interval=55.0)
+    client.register("temperature", value=None, on_read=read_temperature, interval=60.0)
     client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
     # Register the Wi-Fi connection task
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
@@ -141,23 +159,23 @@ if __name__ == "__main__":
         try:
             from machine import WDT
             # Enable the WDT with a timeout of 5s (1s is the minimum)
-            wdt = WDT(timeout=7500)
+            wdt = WDT(timeout=10000)
             client.register(Task("watchdog_task", on_run=wdt_task, interval=1.0))
         except (ImportError, AttributeError):
             pass
 
-    #await client.start()
-    client.start()
+    await client.start()
+    #client.start()
 
-    fetch_irrigation_values(client)
+    #fetch_irrigation_values(client)
 
     while True:
         client.update()
         time.sleep(0.100)
 
 # Start the main async function
-# import uasyncio as asyncio
-# try:
-#     asyncio.run(main())
-# except Exception as e:
-#     print(f"Unhandled exception: {e}")
+import uasyncio as asyncio
+try:
+    asyncio.run(main())
+except Exception as e:
+    print(f"Unhandled exception: {e}")

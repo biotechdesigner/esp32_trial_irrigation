@@ -3,13 +3,13 @@
 import network
 import time
 import machine
-from my_secrets import SSID, PASSWORD, DEVICE_ID, CLOUD_PASSWORD
+from secrets import WIFI_SSID, WIFI_PASS
 
 
 def connect_to_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
-    wlan.connect(SSID, PASSWORD)
+    wlan.connect(WIFI_SSID, WIFI_PASS)
 
     max_attempts = 10
     attempt = 0

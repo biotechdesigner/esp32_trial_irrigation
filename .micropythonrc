@@ -16,7 +16,7 @@
     ]
   },
   "tools": {
-    "ampy": ".venv/lib/python3.12/site-packages/ampy",
-    "rshell": ".venv/lib/python3.12/site-packages/rshell"
+    "ampy": "/opt/homebrew/bin/ampy",
+    "rshell": "/opt/homebrew/bin/rshell"
   }
 }
