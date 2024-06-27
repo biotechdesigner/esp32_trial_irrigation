@@ -10,6 +10,7 @@
         "arduino-iot-cloud": "*"
     },
     "config": {
-        "pylint": true
+        "pylint": true,
+        "vscode": true
     }
 }
