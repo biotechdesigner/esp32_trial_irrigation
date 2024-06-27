@@ -1,16 +1,24 @@
 {
-    // Loaded Stubs:  micropython-esp32-s3-stubs 
-    
     "python.languageServer": "Pylance",
     "python.analysis.autoSearchPath": true,
-    "python.autoComplete.extraPaths": [".micropy/micropython_esp32_s3_stubs-1.19.1.post1", ".micropy/esp32_trial_irrigation"],
-    "python.analysis.diagnosticSeverityOverrides": { "reportMissingModuleSource": "none" },
+    "python.autoComplete.extraPaths": [
+        ".micropy/micropython_esp32_s3_stubs-1.19.1.post1",
+        ".micropy/Celesta"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingModuleSource": "none"
+    },
     "python.analysis.typeCheckingMode": "basic",
-    "python.autoComplete.typeshedPaths":  [".micropy/micropython_esp32_s3_stubs-1.19.1.post1", ".micropy/esp32_trial_irrigation", "typings"],
-    "python.analysis.typeshedPaths":  [".micropy/micropython_esp32_s3_stubs-1.19.1.post1", ".micropy/esp32_trial_irrigation", "typings"],
-    
-    
-
+    "python.autoComplete.typeshedPaths": [
+        ".micropy/micropython_esp32_s3_stubs-1.19.1.post1",
+        ".micropy/Celesta",
+        "typings"
+    ],
+    "python.analysis.typeshedPaths": [
+        ".micropy/micropython_esp32_s3_stubs-1.19.1.post1",
+        ".micropy/Celesta",
+        "typings"
+    ],
     "python.linting.enabled": true,
     "python.linting.pylintEnabled": true
 }
