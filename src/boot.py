@@ -1,3 +1,4 @@
+# boot.py - - runs on boot-up
 # boot.py
 
 import network
@@ -28,3 +29,4 @@ connect_to_wifi()
 
 # After connecting to Wi-Fi, start the main script
 import main
+ 

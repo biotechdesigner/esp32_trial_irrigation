@@ -1,3 +1,4 @@
+# main.py
 import time
 import logging
 from machine import Pin, I2C, WDT
@@ -114,7 +115,7 @@ def irrigation_task(client):
         print('no irrigation this hour')
     wdt.feed()
 
-async def main():
+if __name__ == "__main__":
     logging.basicConfig(
         datefmt="%H:%M:%S",
         format="%(asctime)s.%(msecs)03d %(message)s",
@@ -133,10 +134,6 @@ async def main():
     client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
     client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
 
-    await client.start()
+    client.start()
 
-import uasyncio as asyncio
-try:
-    asyncio.run(main())
-except Exception as e:
-    print(f"Unhandled exception: {e}")
+

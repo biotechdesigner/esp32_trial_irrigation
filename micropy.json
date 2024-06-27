@@ -1,0 +1,15 @@
+{
+    "name": "Celesta",
+    "stubs": {
+        "micropython-esp32-s3-stubs": "1.19.1.post1"
+    },
+    "dev-packages": {
+        "micropy-cli": "*"
+    },
+    "packages": {
+        "arduino-iot-cloud": "*"
+    },
+    "config": {
+        "pylint": true
+    }
+}
