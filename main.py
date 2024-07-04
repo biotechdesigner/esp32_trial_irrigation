@@ -68,7 +68,7 @@ def read_irrigate(client, value):
     global irrigate
     irrigate = bool(value)
 
-def on_irrigation_day_changed(client, value):
+def update_irrigation_day(client, value):
     global irrigation_day, irr_passed, irrigation_interval, irrigate, intervals_done
     irrigation_day = float(value)
     irrigation_interval = irrigation_day / 14
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     )
     
     client.register("intervals_done", value=None, on_write=get_intervals_done)
-    client.register("irrigation_day", value=None, on_write=on_irrigation_day_changed)
+    client.register("irrigation_day", value=None, on_write=update_irrigation_day)
     client.register("irrigate", value=None)
     client.register("humidity", value=None, on_read=read_humidity, interval=900.0)  # 15 minutes
     client.register("temperature", value=None, on_read=read_temperature, interval=900.0)  # 15 minutes
