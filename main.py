@@ -9,7 +9,7 @@ from arduino_iot_cloud import Task, ArduinoCloudClient, async_wifi_connection
 AM2315_I2C_ADDRESS = 0x5C
 
 # Initialize I2C
-i2c = I2C(0, scl=Pin(12), sda=Pin(11), freq=10000)
+i2c = I2C(0, scl=Pin(4), sda=Pin(3), freq=10000)
 relay = Pin(14, Pin.OUT)
 
 # Global variables for irrigation
