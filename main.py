@@ -73,12 +73,12 @@ def read_data():
 def read_temperature(client):
     temperature, _ = read_data()
     print('Temperature: {} C'.format(temperature))
-    return temperature if temperature is not None else 1000.0
+    return temperature if temperature is not None else None
 
 def read_humidity(client):
     _, humidity = read_data()
     print('Humidity: {} %'.format(humidity))
-    return humidity if humidity is not None else -1000.0
+    return humidity if humidity is not None else None
 
 def read_irrigate(client, value):
     global irrigate
