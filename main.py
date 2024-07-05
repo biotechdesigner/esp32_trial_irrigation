@@ -5,7 +5,7 @@ import logging
 import network
 from machine import Pin, I2C, WDT, Timer
 from secrets import DEVICE_ID, CLOUD_PASSWORD, WIFI_PASS, WIFI_SSID
-from arduino_iot_cloud import Task, ArduinoCloudClient, async_wifi_connection
+from arduino_iot_cloud import Task, ArduinoCloudClient
 
 # I2C address of the AM2315
 AM2315_I2C_ADDRESS = 0x5C
