@@ -1,10 +1,8 @@
 # main.py
 import time
-from time import sleep_ms
 import logging
-import network
 from machine import Pin, I2C, WDT, Timer
-from secrets import DEVICE_ID, CLOUD_PASSWORD, WIFI_PASS, WIFI_SSID
+from secrets import DEVICE_ID, CLOUD_PASSWORD
 from arduino_iot_cloud import Task, ArduinoCloudClient
 
 # I2C address of the AM2315
@@ -29,19 +27,6 @@ wdt = WDT(timeout=3900000)
 def wdt_task(client):
     global wdt
     wdt.feed()
-
-def wifi_connect():
-    global is_connected_to_wifi
-    if not WIFI_SSID or not WIFI_PASS:
-        raise (Exception("Network is not configured. Set SSID and passwords in secrets.py"))
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    wlan.connect(WIFI_SSID, WIFI_PASS)
-    while not wlan.isconnected():
-        logging.info("Trying to connect. Note this may take a while...")
-        sleep_ms(500)
-    logging.info(f"WiFi Connected {wlan.ifconfig()}")
-    is_connected_to_wifi = True
 
 def wake_up_sensor():
     try:
@@ -141,9 +126,6 @@ if __name__ == "__main__":
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
-    
-    wifi_connect()
-
     client = ArduinoCloudClient(
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
@@ -152,5 +134,5 @@ if __name__ == "__main__":
     client.register("irrigate", value=None)
     client.register("humidity", value=None, on_read=read_humidity, interval=900.0)  # 15 minutes
     client.register("temperature", value=None, on_read=read_temperature, interval=900.0)  # 15 minutes
-    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600.0))  # Run every hour
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600.00))  # Run every hour
     client.start()
