@@ -1,8 +1,10 @@
 # main.py
 import time
+from time import sleep_ms
 import logging
-from machine import Pin, I2C, WDT
-from secrets import DEVICE_ID, CLOUD_PASSWORD
+import network
+from machine import Pin, I2C, WDT, Timer
+from secrets import DEVICE_ID, CLOUD_PASSWORD, WIFI_PASS, WIFI_SSID
 from arduino_iot_cloud import Task, ArduinoCloudClient, async_wifi_connection
 
 # I2C address of the AM2315
@@ -20,12 +22,26 @@ intervals_done = 0
 relay.value(0)
 irrigate = False
 
+
 # Initialize the watchdog timer with a timeout of 10 seconds
 wdt = WDT(timeout=3900000)
 
 def wdt_task(client):
     global wdt
     wdt.feed()
+
+def wifi_connect():
+    global is_connected_to_wifi
+    if not WIFI_SSID or not WIFI_PASS:
+        raise (Exception("Network is not configured. Set SSID and passwords in secrets.py"))
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    wlan.connect(WIFI_SSID, WIFI_PASS)
+    while not wlan.isconnected():
+        logging.info("Trying to connect. Note this may take a while...")
+        sleep_ms(500)
+    logging.info(f"WiFi Connected {wlan.ifconfig()}")
+    is_connected_to_wifi = True
 
 def wake_up_sensor():
     try:
@@ -83,36 +99,40 @@ def get_intervals_done(client, value):
     intervals_done = float(value)
     print('Updated values from the cloud')
     print("Hours of irrigation made: {} hours".format(intervals_done))
+    return intervals_done
 
 def irrigation_task(client):
     global irr_passed, irrigate, irrigation_day, intervals_done
-    wdt.feed()
     if irrigation_day > 0:
-        relay.value(1)
-        print("Relay is ON")
-        time.sleep(irrigation_interval * 60)
-        relay.value(0)
-        print("Relay is OFF")
-        
-        irr_passed += irrigation_interval
-        intervals_done += 1
-        print("Amount of irrigations made: {}".format(intervals_done))
-        print("Minutes of irrigation made so far: {}".format(irr_passed))
-        client["intervals_done"] = intervals_done
-        client["irrigate"] = irrigate
-        if intervals_done >= 14:
-            irrigation_day = 0
-            intervals_done = 0
-            irr_passed = 0
-            irrigate = False
-            client["irrigation_day"] = irrigation_day
-            client["intervals_done"] = intervals_done
-            client["irrigate"] = irrigate
-            print("Irrigation of the day completed")
-            
-        print('Irrigation remaining: {} min'.format(irrigation_day - irr_passed))
+            relay.value(1)
+            print("Relay is ON")
+
+            # Create a timer
+            timer = Timer(-1)
+            timer.init(period=int(irrigation_interval * 60 * 1000), mode=Timer.ONE_SHOT, callback=lambda t: irrigation_complete(client))
     else:
         print('no irrigation this hour')
+    wdt.feed()
+
+def irrigation_complete(client):
+    global intervals_done, irrigation_day, irr_passed, irrigate
+    
+    relay.value(0)
+    print("Relay is OFF")
+    intervals_done += 1
+    print("Amount of irrigations made: {}".format(intervals_done))
+    client["intervals_done"] = intervals_done
+    
+    if intervals_done >= 14:
+        irrigation_day = 0
+        intervals_done = 0
+        irr_passed = 0
+        irrigate = False
+        client["irrigation_day"] = irrigation_day
+        client["intervals_done"] = intervals_done
+        client["irrigate"] = irrigate
+        print("Irrigation of the day completed")
+    
     wdt.feed()
 
 if __name__ == "__main__":
@@ -121,19 +141,16 @@ if __name__ == "__main__":
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
+    
+    wifi_connect()
 
     client = ArduinoCloudClient(
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
-    
     client.register("intervals_done", value=None, on_write=get_intervals_done)
     client.register("irrigation_day", value=None, on_write=update_irrigation_day)
     client.register("irrigate", value=None)
     client.register("humidity", value=None, on_read=read_humidity, interval=900.0)  # 15 minutes
     client.register("temperature", value=None, on_read=read_temperature, interval=900.0)  # 15 minutes
-    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600))  # Run every hour
-    client.register(Task("wifi_connection", on_run=async_wifi_connection, interval=60.0))
-
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600.0))  # Run every hour
     client.start()
-
-
