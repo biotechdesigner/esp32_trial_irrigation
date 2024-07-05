@@ -1,9 +1,14 @@
 # main.py
 import time
 import logging
-from machine import Pin, I2C, WDT, Timer
+import struct
+from machine import Pin, I2C, WDT, Timer, RTC
 from secrets import DEVICE_ID, CLOUD_PASSWORD
 from arduino_iot_cloud import Task, ArduinoCloudClient
+import ntptime
+
+# Initialize RTC
+rtc = RTC()
 
 # I2C address of the AM2315
 AM2315_I2C_ADDRESS = 0x5C
@@ -20,13 +25,71 @@ intervals_done = 0
 relay.value(0)
 irrigate = False
 
-
 # Initialize the watchdog timer with a timeout of 10 seconds
 wdt = WDT(timeout=3900000)
 
 def wdt_task(client):
     global wdt
     wdt.feed()
+
+# EEPROM-like storage functions
+EEPROM_SIZE = 1024
+EEPROM = bytearray(EEPROM_SIZE)
+ENTRY_SIZE = 6  # 2 bytes for day + 4 bytes for float value
+MAX_ENTRIES = EEPROM_SIZE // ENTRY_SIZE
+
+def eeprom_write(address, data):
+    global EEPROM
+    EEPROM[address:address+len(data)] = data
+    print(f"EEPROM write at address {address}: {data}")
+
+def eeprom_read(address, size):
+    global EEPROM
+    data = EEPROM[address:address+size]
+    print(f"EEPROM read from address {address}, size {size}: {data}")
+    return data
+
+def save_irrigation_day(day, value):
+    global EEPROM
+    for i in range(MAX_ENTRIES):
+        addr = i * ENTRY_SIZE
+        stored_day_bytes = eeprom_read(addr, 2)
+        stored_day = struct.unpack('H', stored_day_bytes)[0]
+        if stored_day == day or stored_day == 0xFFFF:  # Empty or matching entry
+            eeprom_write(addr, struct.pack('H', day))
+            eeprom_write(addr + 2, struct.pack('f', value))
+            print(f"Saved irrigation day {day} with value {value} at address {addr}")
+            return
+
+def load_last_irrigation_day():
+    global EEPROM
+    for i in range(MAX_ENTRIES - 1, -1, -1):
+        addr = i * ENTRY_SIZE
+        stored_day_bytes = eeprom_read(addr, 2)
+        stored_day = struct.unpack('H', stored_day_bytes)[0]
+        if stored_day != 0xFFFF:  # Valid entry
+            value_bytes = eeprom_read(addr + 2, 4)
+            value = struct.unpack('f', value_bytes)[0]
+            print(f"Loaded last irrigation day {stored_day} with value {value} from address {addr}")
+            return stored_day, value
+    print("No valid irrigation day found in EEPROM")
+    return None, 0.0
+
+def set_time_from_ntp():
+    try:
+        ntptime.host = 'pool.ntp.org'
+        ntptime.settime()
+        # Adjust for Berlin timezone (UTC+1 or UTC+2 in daylight saving time)
+        current_time = time.localtime()
+        year, month, day, hour, minute, second, weekday, yearday = current_time
+        # Berlin is UTC+1, adjust the hour
+        hour += 1
+        if time.localtime(time.mktime((year, month, day, hour, minute, second, weekday, yearday, -1)))[8] == 1:
+            hour += 1  # If DST is in effect
+        rtc.datetime((year, month, day, weekday, hour, minute, second, 0))
+        print(f"Time set to Berlin time: {rtc.datetime()}")
+    except Exception as e:
+        print(f"Exception occurred while setting time from NTP: {e}")
 
 def wake_up_sensor():
     try:
@@ -75,9 +138,11 @@ def update_irrigation_day(client, value):
     irrigation_interval = irrigation_day / 14
     print('Updated values from the cloud')
     print('Irrigation of the day: {} min'.format(irrigation_day))
-    print("Irrigation interval: {}".format(irrigation_interval))
+    print("Irrigation interval: {} min".format(irrigation_interval))
     irrigate = irrigation_day > 0
     client["irrigate"] = irrigate
+    current_day = rtc.datetime()[2]
+    save_irrigation_day(current_day, irrigation_day)  # Save the current day and irrigation_day
 
 def get_intervals_done(client, value):
     global intervals_done
@@ -88,13 +153,26 @@ def get_intervals_done(client, value):
 
 def irrigation_task(client):
     global irr_passed, irrigate, irrigation_day, intervals_done
-    if irrigation_day > 0:
-            relay.value(1)
-            print("Relay is ON")
+    current_time = rtc.datetime()
+    current_day = current_time[2]  # Get the current day
+    current_hour = current_time[4]  # Get the current hour
 
-            # Create a timer
-            timer = Timer(-1)
-            timer.init(period=int(irrigation_interval * 60 * 1000), mode=Timer.ONE_SHOT, callback=lambda t: irrigation_complete(client))
+    if current_hour >= 10:  # Check if it's 10am or later
+        stored_day, stored_irrigation_day = load_last_irrigation_day()
+        if current_day != stored_day and stored_irrigation_day > 0:
+            irrigation_day = stored_irrigation_day
+            save_irrigation_day(current_day, irrigation_day)  # Update the EEPROM with the current day
+            irrigation_interval = irrigation_day / 14
+            print("No irrigation from Cloud. Irrigation of the day: {} min".format(irrigation_day))
+            print("Irrigation interval:{}".format(irrigation_interval))
+
+    if irrigation_day > 0:
+        relay.value(1)
+        print("Relay is ON")
+
+        # Create a timer
+        timer = Timer(-1)
+        timer.init(period=int(irrigation_interval * 60 * 1000), mode=Timer.ONE_SHOT, callback=lambda t: irrigation_complete(client))
     else:
         print('no irrigation this hour')
     wdt.feed()
@@ -126,6 +204,21 @@ if __name__ == "__main__":
         format="%(asctime)s.%(msecs)03d %(message)s",
         level=logging.INFO,
     )
+
+    # Set the time from NTP
+    set_time_from_ntp()
+    
+    # Load the last irrigation day and set it if there's no entry for today
+    current_time = rtc.datetime()
+    current_day = current_time[2]
+    current_hour = current_time[4]
+    stored_day, stored_irrigation_day = load_last_irrigation_day()
+    if current_day != stored_day and stored_irrigation_day > 0 and current_hour >= 10:
+        irrigation_day = stored_irrigation_day
+        irrigation_interval = irrigation_day / 14
+        print("No irrigation from Cloud. Irrigation of the day: {} min".format(irrigation_day))
+        print("Irrigation interval:{}".format(irrigation_interval))
+
     client = ArduinoCloudClient(
         device_id=DEVICE_ID, username=DEVICE_ID, password=CLOUD_PASSWORD
     )
@@ -134,5 +227,5 @@ if __name__ == "__main__":
     client.register("irrigate", value=None)
     client.register("humidity", value=None, on_read=read_humidity, interval=900.0)  # 15 minutes
     client.register("temperature", value=None, on_read=read_temperature, interval=900.0)  # 15 minutes
-    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600.00))  # Run every hour
+    client.register(Task("irrigation_task", on_run=irrigation_task, interval=3600.0))  # Run every hour
     client.start()
